@@ -1,0 +1,34 @@
+# Builds the Android APK on GitHub's computers (no Android Studio needed).
+# Repo layout: the folder "android-app" must be in the repo. If the game files (index.html + Assets) are also in the repo root,
+# the game is bundled inside the APK and works offline. If they are not, you get a small viewer APK that asks for the game address.
+name: Build APK
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_game:
+        description: "Bundle the game inside the APK (only if the game files are in the repo)"
+        type: boolean
+        default: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Bundle the game into the app (if it is in the repo)
+        if: ${{ hashFiles('index.html') != '' && inputs.bundle_game != false }}
+        working-directory: android-app
+        run: bash copy_game.sh ..
+      - name: Build the APK
+        working-directory: android-app
+        run: gradle --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HuntedThreshold-apk
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk
